@@ -3,14 +3,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Sparkles, 
   PenTool, 
   Video, 
   Share2, 
   CheckCircle2, 
   Copy, 
   RotateCcw,
-  PlusCircle,
   TrendingUp,
 } from 'lucide-react';
 
@@ -32,6 +30,15 @@ interface Marketing {
   description: string;
 }
 
+interface HistoryItem {
+  id: string;
+  theme: string;
+  scenario: Scene[];
+  klingPrompts: KlingPrompt[];
+  marketing: Marketing;
+  timestamp: string;
+}
+
 const AGENTS = [
   { id: 'theme', name: '트렌드 분석가', icon: TrendingUp },
   { id: 'scenario', name: '시나리오 작가', icon: PenTool },
@@ -49,8 +56,31 @@ const Page = () => {
   
   const [loadingStep, setLoadingStep] = useState<Step | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Step[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
-  const fetchAgent = async (step: Step, body: any) => {
+  // Load history on mount
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('youtube_history');
+      if (saved) {
+        try {
+          setHistory(JSON.parse(saved));
+        } catch {
+          console.error('Failed to parse history');
+        }
+      }
+    }
+  });
+
+  // Save history when it changes
+  const saveToHistory = (newItem: HistoryItem) => {
+    const updated = [newItem, ...history].slice(0, 50); // Keep last 50
+    setHistory(updated);
+    localStorage.setItem('youtube_history', JSON.stringify(updated));
+  };
+
+  const fetchAgent = async (step: Step, body: Record<string, unknown>) => {
     setLoadingStep(step);
     try {
       const res = await fetch('/api/generate', {
@@ -98,6 +128,59 @@ const Page = () => {
     if (!marketingData) return;
     setMarketing(marketingData);
     setCompletedSteps(prev => [...prev, 'marketing']);
+
+    // Save to history
+    saveToHistory({
+      id: Date.now().toString(),
+      theme: selectedTheme,
+      scenario: scenarioData.scenes,
+      klingPrompts: klingData.prompts,
+      marketing: marketingData,
+      timestamp: new Date().toLocaleString(),
+    });
+
+    // Save to Notion as Completed
+    await saveToNotion({
+      theme: selectedTheme,
+      scenario: scenarioData.scenes,
+      klingPrompts: klingData.prompts,
+      marketing: marketingData,
+    }, '생성 완료');
+  };
+
+  const loadFromHistory = (item: HistoryItem) => {
+    setSelectedTheme(item.theme);
+    setScenario(item.scenario);
+    setKlingPrompts(item.klingPrompts);
+    setMarketing(item.marketing);
+    setCompletedSteps(['theme', 'scenario', 'kling', 'marketing']);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const saveToNotion = async (data: any, status = '아이디어') => {
+    try {
+      const res = await fetch('/api/notion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, status }),
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      return result;
+    } catch (err) {
+      console.error(err);
+      alert('노션 저장 중 에러가 발생했습니다. API 키를 확인해주세요.');
+      return null;
+    }
+  };
+
+  const saveAllThemesToNotion = async () => {
+    setLoadingStep('theme');
+    for (const theme of themes) {
+      await saveToNotion({ theme });
+    }
+    setLoadingStep(null);
+    alert(`${themes.length}개의 주제가 노션 '아이디어' 보드로 저장되었습니다!`);
   };
 
   const copyToClipboard = (text: string) => {
@@ -131,7 +214,7 @@ const Page = () => {
 
       {/* Step Progress */}
       <div className="agent-steps">
-        {AGENTS.map((agent) => {
+          {AGENTS.map((agent) => {
           const isCompleted = completedSteps.includes(agent.id as Step);
           const isActive = loadingStep === agent.id;
           return (
@@ -144,6 +227,51 @@ const Page = () => {
           );
         })}
       </div>
+
+      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+        <button 
+          className="btn-secondary" 
+          onClick={() => setShowHistory(!showHistory)}
+          style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}
+        >
+          {showHistory ? '히스토리 닫기' : '이전 기록 보기 (History)'}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showHistory && (
+          <motion.section 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="glass-panel"
+            style={{ marginBottom: '2rem', padding: '1.5rem', overflow: 'hidden' }}
+          >
+            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RotateCcw size={18} /> 최근 생성 기록
+            </h3>
+            {history.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>아직 저장된 기록이 없습니다.</p>
+            ) : (
+              <div className="history-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1) )', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {history.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="list-item" 
+                      onClick={() => loadFromHistory(item)}
+                      style={{ padding: '0.8rem', fontSize: '0.9rem' }}
+                    >
+                      <div style={{ fontWeight: 600, color: 'var(--accent-color)', marginBottom: '4px' }}>{item.theme}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{item.timestamp}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       <main>
         {/* Input Section */}
@@ -183,7 +311,10 @@ const Page = () => {
                 ))}
                 
                 {selectedTheme && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: '1.5rem', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                    <button className="btn-secondary" onClick={saveAllThemesToNotion} disabled={!!loadingStep}>
+                      모든 주제 노션에 저장
+                    </button>
                     <button className="btn-primary" onClick={startPipeline} disabled={!!loadingStep}>
                       {loadingStep ? '에이전트 작업 중...' : '자동화 파이프라인 시작'}
                     </button>
@@ -198,6 +329,7 @@ const Page = () => {
         <AnimatePresence>
           {scenario.length > 0 && (
             <motion.section 
+              key="scenario-section"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="glass-panel result-section"
@@ -220,6 +352,7 @@ const Page = () => {
 
           {klingPrompts.length > 0 && (
             <motion.section 
+              key="kling-section"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               className="glass-panel result-section"
@@ -243,6 +376,7 @@ const Page = () => {
 
           {marketing && (
             <motion.section 
+              key="marketing-section"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="glass-panel result-section"

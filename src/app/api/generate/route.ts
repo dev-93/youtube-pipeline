@@ -1,42 +1,63 @@
 import { NextResponse } from 'next/server';
 import { generateContent } from '@/lib/gemini';
 
+interface Scene {
+  sceneNumber: number;
+  description: string;
+}
+
 const AGENT_PROMPTS = {
-  theme: `당신은 '트렌드 마일스톤(Trend Milestone)' 분석 전문가입니다. 
-당신의 임무는 틱톡, 인스타그램 릴스, 유튜브 쇼츠의 최신 데이터 패턴을 분석하여 '지금 바로 조회수가 터질 수 있는' 주제 5가지를 생성하는 것입니다.
-조건: 
-1. 롱테일 키워드와 숏컬처(Short-culture)의 결합.
-2. 아동 안전 지침을 철저히 준수하여 계정 폐쇄 위험 0%.
-3. 호기심(Curiosity Gap)을 유발하는 강력한 헤드라인 형태.
+  theme: `당신은 "왜 안돼?"(Why Not?) 시리즈 전용 쇼츠 주제 추천 전문가입니다. 
+아이들이 "왜 하면 안 되는지 모르는 행동"을 소재로 부모는 교육 효과를, 아이들은 재미를 느낄 수 있는 글로벌 타겟 주제 5가지를 생성하세요.
+
+조건:
+1. 형식: 반드시 "왜 ~하면 안돼?" 또는 "절대 ~하면 안 되는 이유" 형태를 고수하세요.
+2. 소재: 등산 중 너구리(광견병), 차도 위험성, 모르는 사람 따라가기, 높은 곳에서 뛰어내리기, 날카로운 도구 등 '안전'과 '과학적 이유'가 결합된 소재 우선.
+3. 의외성: 금지/경고 뒤에 숨겨진 의외의 사실이나 섬뜩하지만 유익한 과학적 근거를 포함하세요.
+4. 타겟: 부모가 아이에게 보여주고 싶고, 아이들이 스스로 보고 싶어 하는 B급 감성 교육 콘텐츠.
+5. 차별화: 단순 지식 전달이 아닌, 시각적 충격을 줄 수 있는 '이유'가 명확한 주제를 선정하세요.
+
 결과는 반드시 JSON 형식으로 반환하세요.
 형식: { "themes": ["주제1", "주제2", "주제3", "주제4", "주제5"] }`,
 
-  scenario: (theme: string) => `당신은 할리우드 출신의 '시각적 스토리텔러(Visual Storyteller)'입니다. 
-주제: "${theme}"를 쇼츠라는 짧은 형식 안에서 텍스트 없이오직 '행동'과 '영상미'로만 전달하세요.
-작업 지침:
-1. '후크(Hook)' - 시작 3초 안에 시선을 끌어야 함.
-2. '긴장(Tension)' - 중간 단계에서 리듬감 있는 전개.
-3. '반전/결말(Payoff)' - 끝까지 보게 만드는 보상.
-결과는 반드시 JSON 형식으로 반환하세요.
-형식: { "scenes": [ { "sceneNumber": 1, "description": "디테일한 시각적 묘사" }, ... ] }`,
+  scenario: (theme: string) => `당신은 할리우드 출신의 '시각적 스토리텔러'이자 B급 감성 애니메이션 감독입니다.
+주제: "${theme}"
 
-  kling: (scenes: any[]) => `당신은 Kling AI 및 Stable Video Diffusion 전문 '프롬프트 인지 엔지니어(Prompt Cognitive Engineer)'입니다.
-다음 시나리오의 각 장면을 Kling AI가 가장 선호하는 '영어' 기술적 프롬프트로 변환하세요.
-프롬프트 필수 요소:
-- Cinematic lighting (e.g., volumetric fog, golden hour, neon glow)
-- Camera dynamics (e.g., slow dolly zoom, low angle, handheld drift)
-- Texture & Detail (e.g., 8k, photorealistic, intricate textures, masterpiece)
-- Motion description (e.g., subtle movements, expressive facial expressions)
-스토리보드: ${JSON.stringify(scenes)}
+에피소드 구조 (반드시 준수):
+1. 상황(Situation): 캐릭터가 특정 장소(예: 등산로)에 있음.
+2. 행동(Action): 캐릭터가 금지된 행동을 하려고 함(예: 너구리를 만지려 함), 호기심 가득한 표정.
+3. 결과(Result): 그 행동의 위험성/과학적 이유를 과장되게 시각화(예: 너구리 입속 바이러스가 괴물처럼 변함), 캐릭터의 절망적이고 킹받는 표정.
+4. 마무리(X-mark): 화면 중앙에 커다란 빨간색 X 표시와 함께 종료.
+
+캐릭터 및 스타일 지침:
+- 캐릭터: 단순하고 못생긴 듯 귀여운(Ugly-cute) 스타일, 표정이 과장되고 킹받는(Annoying-but-funny) 느낌.
+- 무대사: 전 세계 누구나 이해할 수 있게 대사 없이 오직 행동과 표정, 효과음 위주로 구성하세요.
+- 시각화: 과학적 근거/이유를 시각적으로 매우 강력하고 과장되게 묘사하세요.
+
 결과는 반드시 JSON 형식으로 반환하세요.
-형식: { "prompts": [ { "sceneNumber": 1, "englishPrompt": "Professional English prompt here" }, ... ] }`,
+형식: { "scenes": [ { "sceneNumber": 1, "description": "디테일한 시각적 및 캐릭터 표정 묘사" }, ... ] }`,
+
+  kling: (scenes: Scene[]) => `당신은 Kling AI 전문 '프롬프트 엔지니어'입니다. 
+다음 시나리오를 B급 감성의 'Ugly-cute' 3D/2D 하이브리드 애니메이션 스타일 영어 프롬프트로 변환하세요.
+
+프롬프트 필수 요소:
+- Style: B-grade aesthetic, "Ugly-cute" character design, vibrant but slightly offbeat colors, exaggerated facial expressions (annoying but funny).
+- Visuals: Macro view of viruses/bacteria, high-contrast, bright red background for "X" mark.
+- Camera: Dynamic angles, close-ups on exaggerated expressions, handheld camera shake.
+- Technical: 8k, high quality, masterpiece, expressive animations, 3D render style but with flat textures.
+스토리보드: ${JSON.stringify(scenes)}
+
+결과는 반드시 JSON 형식으로 반환하세요.
+형식: { "prompts": [ { "sceneNumber": 1, "englishPrompt": "Scientific and artistic English prompt here" }, ... ] }`,
 
   marketing: (theme: string) => `당신은 유튜브 쇼츠 알고리즘을 해킹하는 '그로스 아키텍트(Growth Architect)'입니다.
-주제: "${theme}"의 CTR(클릭률)과 시청 지속 시간을 극대화하기 위한 마케팅 에셋을 구성하세요.
+주제: "${theme}" (왜 안돼? 시리즈)의 CTR(클릭률)과 시청 지속 시간을 극대화하기 위한 마케팅 에셋을 구성하세요.
+
 작업 내용:
-1. 100만 조회수급 제목: 한글과 이모지를 적절히 섞어 뇌를 자극하는 제목.
-2. 하이퍼 타겟팅 해시태그: 30개의 관련성 높은 해시태그를 정교하게 선별.
-3. 전환형 설명: 시청자 참여(좋아요, 구독)를 유도하는 구조화된 설명글.
+1. 100만 조회수급 제목: "절대 하지 마세요", "진짜 위험한 이유", "당신만 모르는 치명적인 사실" 등 공포와 호기심을 극대화하는 한글 제목과 이모지.
+2. 하이퍼 타겟팅 해시태그: #왜안돼 #Shorts #공포 #경고 #지식 #과학 등 30개의 핵심 해시태그.
+3. 전환형 설명: "이거 모르고 하던 사람?" 같은 자극적인 질문으로 댓글 참여를 유도하고 구독을 제안하는 구조화된 설명글.
+
 결과는 반드시 JSON 형식으로 반환하세요.
 형식: { "title": "제목", "hashtags": "해시태그1 #해시태그2 ...", "description": "구조화된 설명" }`
 };
@@ -69,8 +90,9 @@ export const POST = async (request: Request) => {
     const data = JSON.parse(jsonStr);
 
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error) {
     console.error('API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 };

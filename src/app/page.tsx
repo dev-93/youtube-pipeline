@@ -63,7 +63,6 @@ export default function Page() {
   const [showHistory, setShowHistory] = useState(false);
   const [weeklyTrends, setWeeklyTrends] = useState<any[]>([]);
   const [showToast, setShowToast] = useState(false);
-  const [showTrends, setShowTrends] = useState(true);
   const [showKeywordInfo, setShowKeywordInfo] = useState(false);
 
   useEffect(() => {
@@ -222,119 +221,110 @@ export default function Page() {
         <p className="subtitle">AI 유튜브 쇼츠 자동화 파이프라인</p>
       </header>
 
-      {/* Recommended Keywords - Move to top for better visibility */}
-      <section className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            <TrendingUp size={16} /> 이번 주 추천 키워드
+      {/* Integrated Trends & Keywords Section */}
+      <section className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Calendar size={28} color="var(--accent-color)" /> 이번 주 추천 트렌드 & 키워드
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowKeywordInfo(!showKeywordInfo)}
               style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: showKeywordInfo ? 'var(--accent-color)' : 'var(--text-secondary)' }}
             >
-              <HelpCircle size={16} />
+              <HelpCircle size={20} />
             </motion.button>
-          </div>
+          </h2>
         </div>
 
         <AnimatePresence>
           {showKeywordInfo && (
             <motion.div
               initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-              animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
               exit={{ opacity: 0, height: 0, marginBottom: 0 }}
               style={{ 
-                background: 'rgba(99, 102, 241, 0.1)', 
-                border: '1px solid rgba(99, 102, 241, 0.2)',
-                borderRadius: '12px',
-                padding: '1rem',
-                fontSize: '0.85rem',
+                background: 'rgba(99, 102, 241, 0.08)', 
+                border: '1px solid rgba(99, 102, 241, 0.15)',
+                borderRadius: '16px',
+                padding: '1.2rem',
+                fontSize: '0.9rem',
                 overflow: 'hidden'
               }}
             >
-              <p style={{ fontWeight: 700, marginBottom: '0.5rem', color: 'var(--accent-color)' }}>💡 키워드 선정 기준</p>
-              <ul style={{ paddingLeft: '1.2rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px', listStyleType: 'disc' }}>
+              <p style={{ fontWeight: 700, marginBottom: '0.6rem', color: 'var(--accent-color)' }}>💡 키워드 선정 기준</p>
+              <ul style={{ paddingLeft: '1.2rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', listStyleType: 'disc' }}>
                 <li><strong>대상:</strong> 3-7세 어린이 및 그 부모님</li>
                 <li><strong>컨셉:</strong> "왜 안돼?" (호기심과 안전 교육의 결합)</li>
                 <li><strong>기준:</strong> 시각적 대비가 뚜렷한 안전 수칙, 의외의 과학 상식, 대자연의 신비</li>
+                <li><strong>출처:</strong> Google Gemini AI ('왜 안돼?' 안전/교육 테마 기반 자동 분석)</li>
               </ul>
             </motion.div>
           )}
         </AnimatePresence>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+
+        {/* Keywords Row */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
           {weeklyTrends.length === 0 ? (
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>트렌드 데이터를 불러오는 중...</p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>트렌드 데이터를 불러오는 중...</p>
           ) : (
             Array.from(new Set(weeklyTrends.map(t => t.keyword))).map((keyword, idx) => (
               <motion.button
                 key={idx}
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 className="keyword-tag"
-                onClick={() => setInputTheme(keyword)}
+                onClick={() => {
+                  setInputTheme(keyword);
+                  setSelectedTheme(keyword);
+                  setThemes([keyword]);
+                  setCompletedSteps(['theme']);
+                }}
+                style={{ padding: '0.5rem 1.2rem' }}
               >
                 #{keyword}
               </motion.button>
             ))
           )}
         </div>
-      </section>
 
-      {/* Weekly Trends Section (Cards) */}
-      <section className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Calendar size={24} color="var(--accent-color)" /> 이번 주 추천 트렌드
-          </h2>
-          <button className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }} onClick={() => setShowTrends(!showTrends)}>
-            {showTrends ? '접기' : '보기'}
-          </button>
-        </div>
-
-        <AnimatePresence>
-          {showTrends && weeklyTrends.length > 0 && (
+        {/* Trends Cards Grid - Always visible */}
+        <div 
+          id="trends-container"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}
+        >
+          {weeklyTrends.map((trend, idx) => (
             <motion.div 
-              id="trends-container"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', overflow: 'hidden' }}
+              key={idx}
+              className="list-item"
+              style={{ padding: '1.5rem', background: 'rgba(255, 255, 255, 0.04)', position: 'relative', margin: 0 }}
+              onClick={() => {
+                setInputTheme(trend.theme);
+                setSelectedTheme(trend.theme);
+                setThemes([trend.theme]);
+                setCompletedSteps(['theme']);
+              }}
+              whileHover={{ y: -8, background: 'rgba(255, 255, 255, 0.08)' }}
             >
-              {weeklyTrends.map((trend, idx) => (
-                <motion.div 
-                  key={idx}
-                  className="list-item"
-                  style={{ padding: '1.5rem', background: 'rgba(255, 255, 255, 0.05)', position: 'relative' }}
-                  onClick={() => {
-                    setInputTheme(trend.theme);
-                    setSelectedTheme(trend.theme);
-                    setThemes([trend.theme]);
-                    setCompletedSteps(['theme']);
-                  }}
-                  whileHover={{ y: -5 }}
-                >
-                  <span style={{ position: 'absolute', top: '1rem', left: '1rem', padding: '0.2rem 0.6rem', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '10px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    {trend.target}
-                  </span>
-                  <Sparkles size={14} style={{ position: 'absolute', top: '1rem', right: '1rem', color: 'var(--accent-color)' }} />
-                  <div style={{ marginTop: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                      {trend.theme}
-                    </h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {trend.description}
-                    </p>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-color)' }}>#{trend.keyword}</span>
-                      <ChevronRight size={16} />
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+              <span style={{ position: 'absolute', top: '1rem', left: '1rem', padding: '0.2rem 0.6rem', background: 'rgba(99, 102, 241, 0.15)', borderRadius: '10px', fontSize: '0.7rem', color: 'var(--accent-color)', fontWeight: 600 }}>
+                {trend.target}
+              </span>
+              <Sparkles size={14} style={{ position: 'absolute', top: '1rem', right: '1rem', color: 'var(--accent-color)' }} />
+              <div style={{ marginTop: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                  {trend.theme}
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.2rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {trend.description}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-color)' }}>#{trend.keyword}</span>
+                  <ChevronRight size={16} color="var(--text-secondary)" />
+                </div>
+              </div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          ))}
+        </div>
       </section>
 
       {/* Step Progress */}

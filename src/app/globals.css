@@ -227,3 +227,21 @@ button {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.keyword-tag {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent-color);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.keyword-tag:hover {
+  background: var(--accent-color);
+  color: white;
+  transform: translateY(-2px);
+}

@@ -13,6 +13,7 @@ import {
   Sparkles,
   Calendar,
   ChevronRight,
+  HelpCircle,
 } from 'lucide-react';
 
 type Step = 'theme' | 'scenario' | 'kling' | 'marketing';
@@ -27,7 +28,7 @@ interface KlingPrompt {
   englishPrompt: string;
 }
 
-interface Marketing {
+interface MarketingPlan {
   title: string;
   hashtags: string;
   description: string;
@@ -38,88 +39,58 @@ interface HistoryItem {
   theme: string;
   scenario: Scene[];
   klingPrompts: KlingPrompt[];
-  marketing: Marketing;
+  marketing: MarketingPlan | null;
   timestamp: string;
 }
 
 const AGENTS = [
-  { id: 'theme', name: '트렌드 분석가', icon: TrendingUp },
+  { id: 'theme', name: '트랜드 분석가', icon: TrendingUp },
   { id: 'scenario', name: '시나리오 작가', icon: PenTool },
   { id: 'kling', name: 'Kling 프롬프트', icon: Video },
   { id: 'marketing', name: '마케터', icon: Share2 },
 ];
 
-interface TrendItem {
-  keyword: string;
-  theme: string;
-  description: string;
-  target: string;
-}
-
-const Page = () => {
+export default function Page() {
   const [inputTheme, setInputTheme] = useState('');
   const [themes, setThemes] = useState<string[]>([]);
-  const [selectedTheme, setSelectedTheme] = useState('');
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [scenario, setScenario] = useState<Scene[]>([]);
   const [klingPrompts, setKlingPrompts] = useState<KlingPrompt[]>([]);
-  const [marketing, setMarketing] = useState<Marketing | null>(null);
-  
+  const [marketing, setMarketing] = useState<MarketingPlan | null>(null);
   const [loadingStep, setLoadingStep] = useState<Step | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Step[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [weeklyTrends, setWeeklyTrends] = useState<TrendItem[]>([]);
-  const [showWeeklyTrends, setShowWeeklyTrends] = useState(true);
-  
-  const [toast, setToast] = useState<{ message: string; visible: boolean; type: 'success' | 'error' }>({
-    message: '',
-    visible: false,
-    type: 'success',
-  });
+  const [weeklyTrends, setWeeklyTrends] = useState<any[]>([]);
+  const [showToast, setShowToast] = useState(false);
+  const [showTrends, setShowTrends] = useState(true);
+  const [showKeywordInfo, setShowKeywordInfo] = useState(false);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, visible: true, type });
-    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
-  };
+  useEffect(() => {
+    // Load trends
+    fetch('/api/trends')
+      .then(res => res.json())
+      .then(data => {
+        if (data.trends) setWeeklyTrends(data.trends);
+      })
+      .catch(err => console.error('Trends fetch error:', err));
 
-  // Load history on mount
-  useState(() => {
+    // Load history from localStorage
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('youtube_history');
+      const saved = localStorage.getItem('youtube_pipeline_history');
       if (saved) {
-        try {
-          setHistory(JSON.parse(saved));
-        } catch {
-          console.error('Failed to parse history');
-        }
+        setHistory(JSON.parse(saved));
       }
     }
-  });
-
-  // Save history when it changes
-  const saveToHistory = (newItem: HistoryItem) => {
-    const updated = [newItem, ...history].slice(0, 50); // Keep last 50
-    setHistory(updated);
-    localStorage.setItem('youtube_history', JSON.stringify(updated));
-  };
-
-  // Fetch weekly trends on mount
-  useEffect(() => {
-    const fetchWeeklyTrends = async () => {
-      try {
-        const res = await fetch('/api/trends');
-        const data = await res.json();
-        if (data.trends) {
-          setWeeklyTrends(data.trends);
-        }
-      } catch (err) {
-        console.error('Failed to fetch weekly trends', err);
-      }
-    };
-    fetchWeeklyTrends();
   }, []);
 
-  const fetchAgent = async (step: Step, body: Record<string, unknown>) => {
+  const saveToHistory = (item: HistoryItem) => {
+    const updated = [item, ...history].slice(0, 10);
+    setHistory(updated);
+    localStorage.setItem('youtube_pipeline_history', JSON.stringify(updated));
+  };
+
+  const fetchAgent = async (step: Step, body: any) => {
     setLoadingStep(step);
     try {
       const res = await fetch('/api/generate', {
@@ -130,9 +101,9 @@ const Page = () => {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data;
-    } catch (err) {
-      console.error(err);
-      showToast('에러가 발생했습니다. 다시 시도해주세요.', 'error');
+    } catch (error) {
+      console.error(`${step} agent error:`, error);
+      alert(`${step} 단계 중 오류가 발생했습니다.`);
       return null;
     } finally {
       setLoadingStep(null);
@@ -143,48 +114,42 @@ const Page = () => {
     const data = await fetchAgent('theme', {});
     if (data && data.themes) {
       setThemes(data.themes);
-      setCompletedSteps(prev => [...prev.filter(s => s !== 'theme'), 'theme']);
+      setCompletedSteps(['theme']);
     }
   };
 
   const startPipeline = async () => {
-    if (!selectedTheme) return showToast('주제를 먼저 선택해주세요.', 'error');
+    if (!selectedTheme) return;
 
-    // Step 2: Scenario
+    setScenario([]);
+    setKlingPrompts([]);
+    setMarketing(null);
+    setCompletedSteps(['theme']);
+
     const scenarioData = await fetchAgent('scenario', { theme: selectedTheme });
     if (!scenarioData) return;
-    setScenario(scenarioData.scenes);
-    setCompletedSteps(prev => [...prev, 'scenario']);
+    setScenario(scenarioData.scenario);
+    setCompletedSteps(['theme', 'scenario']);
 
-    // Step 3: Kling
-    const klingData = await fetchAgent('kling', { scenes: scenarioData.scenes });
+    const klingData = await fetchAgent('kling', { scenario: scenarioData.scenario });
     if (!klingData) return;
     setKlingPrompts(klingData.prompts);
-    setCompletedSteps(prev => [...prev, 'kling']);
+    setCompletedSteps(['theme', 'scenario', 'kling']);
 
-    // Step 4: Marketing
     const marketingData = await fetchAgent('marketing', { theme: selectedTheme });
     if (!marketingData) return;
     setMarketing(marketingData);
-    setCompletedSteps(prev => [...prev, 'marketing']);
+    setCompletedSteps(['theme', 'scenario', 'kling', 'marketing']);
 
-    // Save to history
-    saveToHistory({
+    const newItem: HistoryItem = {
       id: Date.now().toString(),
       theme: selectedTheme,
-      scenario: scenarioData.scenes,
+      scenario: scenarioData.scenario,
       klingPrompts: klingData.prompts,
       marketing: marketingData,
       timestamp: new Date().toLocaleString(),
-    });
-
-    // Save to Notion as Completed
-    await saveToNotion({
-      theme: selectedTheme,
-      scenario: scenarioData.scenes,
-      klingPrompts: klingData.prompts,
-      marketing: marketingData,
-    }, '생성 완료');
+    };
+    saveToHistory(newItem);
   };
 
   const loadFromHistory = (item: HistoryItem) => {
@@ -193,53 +158,59 @@ const Page = () => {
     setKlingPrompts(item.klingPrompts);
     setMarketing(item.marketing);
     setCompletedSteps(['theme', 'scenario', 'kling', 'marketing']);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setShowHistory(false);
   };
 
-  const saveToNotion = async (data: Record<string, unknown>, status = '아이디어') => {
+  const saveAllThemesToNotion = async () => {
+    if (themes.length === 0) return;
+    setLoadingStep('theme');
     try {
       const res = await fetch('/api/notion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, status }),
+        body: JSON.stringify({ themes }),
       });
-      const result = await res.json();
-      if (result.error) throw new Error(result.error);
-      return result;
+      const data = await res.json();
+      if (data.success) {
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        throw new Error(data.error);
+      }
     } catch (err) {
-      console.error(err);
-      showToast('노션 저장 중 에러가 발생했습니다. API 키를 확인해주세요.', 'error');
-      return null;
+      console.error('Notion save error:', err);
+      alert('노션 저장에 실패했습니다.');
+    } finally {
+      setLoadingStep(null);
     }
-  };
-
-  const saveAllThemesToNotion = async () => {
-    setLoadingStep('theme');
-    for (const theme of themes) {
-      await saveToNotion({ theme });
-    }
-    setLoadingStep(null);
-    showToast(`${themes.length}개의 주제가 노션 '아이디어' 보드로 저장되었습니다!`);
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    showToast('클립보드에 복사되었습니다!');
+    alert('클립보드에 복사되었습니다.');
   };
 
   const resetAll = () => {
+    setInputTheme('');
     setThemes([]);
-    setSelectedTheme('');
+    setSelectedTheme(null);
     setScenario([]);
     setKlingPrompts([]);
     setMarketing(null);
     setCompletedSteps([]);
-    setInputTheme('');
   };
 
   return (
-    <div className="main-container">
+    <div className="main-container" suppressHydrationWarning>
       <header className="header">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          style={{ marginBottom: '1rem' }}
+        >
+          <Sparkles color="var(--accent-color)" size={40} />
+        </motion.div>
         <motion.h1 
           className="title"
           initial={{ opacity: 0, y: -20 }}
@@ -251,52 +222,103 @@ const Page = () => {
         <p className="subtitle">AI 유튜브 쇼츠 자동화 파이프라인</p>
       </header>
 
-      {/* Weekly Trends Section */}
-      <section style={{ marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Calendar size={20} className="text-secondary" /> 이번 주 추천 트렌드
+      {/* Recommended Keywords - Move to top for better visibility */}
+      <section className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            <TrendingUp size={16} /> 이번 주 추천 키워드
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowKeywordInfo(!showKeywordInfo)}
+              style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: showKeywordInfo ? 'var(--accent-color)' : 'var(--text-secondary)' }}
+            >
+              <HelpCircle size={16} />
+            </motion.button>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {showKeywordInfo && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              style={{ 
+                background: 'rgba(99, 102, 241, 0.1)', 
+                border: '1px solid rgba(99, 102, 241, 0.2)',
+                borderRadius: '12px',
+                padding: '1rem',
+                fontSize: '0.85rem',
+                overflow: 'hidden'
+              }}
+            >
+              <p style={{ fontWeight: 700, marginBottom: '0.5rem', color: 'var(--accent-color)' }}>💡 키워드 선정 기준</p>
+              <ul style={{ paddingLeft: '1.2rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px', listStyleType: 'disc' }}>
+                <li><strong>대상:</strong> 3-7세 어린이 및 그 부모님</li>
+                <li><strong>컨셉:</strong> "왜 안돼?" (호기심과 안전 교육의 결합)</li>
+                <li><strong>기준:</strong> 시각적 대비가 뚜렷한 안전 수칙, 의외의 과학 상식, 대자연의 신비</li>
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {weeklyTrends.length === 0 ? (
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>트렌드 데이터를 불러오는 중...</p>
+          ) : (
+            Array.from(new Set(weeklyTrends.map(t => t.keyword))).map((keyword, idx) => (
+              <motion.button
+                key={idx}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="keyword-tag"
+                onClick={() => setInputTheme(keyword)}
+              >
+                #{keyword}
+              </motion.button>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* Weekly Trends Section (Cards) */}
+      <section className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Calendar size={24} color="var(--accent-color)" /> 이번 주 추천 트렌드
           </h2>
-          <button 
-            className="btn-secondary" 
-            onClick={() => setShowWeeklyTrends(!showWeeklyTrends)}
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
-          >
-            {showWeeklyTrends ? '접기' : '모두 보기'}
+          <button className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }} onClick={() => setShowTrends(!showTrends)}>
+            {showTrends ? '접기' : '보기'}
           </button>
         </div>
 
         <AnimatePresence>
-          {showWeeklyTrends && (
+          {showTrends && weeklyTrends.length > 0 && (
             <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}
+              id="trends-container"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', overflow: 'hidden' }}
             >
-              {weeklyTrends.length === 0 ? (
-                <div className="glass-panel" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '2rem' }}>
-                  <p style={{ color: 'var(--text-secondary)' }}>월요일 오전에 새로운 트렌드가 업데이트됩니다.</p>
-                </div>
-              ) : (
-                weeklyTrends.map((trend, idx) => (
-                  <motion.div 
-                    key={idx}
-                    whileHover={{ scale: 1.02 }}
-                    className={`glass-panel ${selectedTheme === trend.theme ? 'selected-item' : ''}`}
-                    style={{ padding: '1.5rem', marginBottom: 0, cursor: 'pointer', transition: 'all 0.3s ease' }}
-                    onClick={() => {
-                      setSelectedTheme(trend.theme);
-                      setThemes([trend.theme]);
-                      setCompletedSteps(['theme']);
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
-                      <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>
-                        {trend.target}
-                      </span>
-                      <Sparkles size={14} style={{ color: 'var(--accent-color)' }} />
-                    </div>
+              {weeklyTrends.map((trend, idx) => (
+                <motion.div 
+                  key={idx}
+                  className="list-item"
+                  style={{ padding: '1.5rem', background: 'rgba(255, 255, 255, 0.05)', position: 'relative' }}
+                  onClick={() => {
+                    setInputTheme(trend.theme);
+                    setSelectedTheme(trend.theme);
+                    setThemes([trend.theme]);
+                    setCompletedSteps(['theme']);
+                  }}
+                  whileHover={{ y: -5 }}
+                >
+                  <span style={{ position: 'absolute', top: '1rem', left: '1rem', padding: '0.2rem 0.6rem', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '10px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    {trend.target}
+                  </span>
+                  <Sparkles size={14} style={{ position: 'absolute', top: '1rem', right: '1rem', color: 'var(--accent-color)' }} />
+                  <div style={{ marginTop: '1.5rem' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
                       {trend.theme}
                     </h3>
@@ -307,9 +329,9 @@ const Page = () => {
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-color)' }}>#{trend.keyword}</span>
                       <ChevronRight size={16} />
                     </div>
-                  </motion.div>
-                ))
-              )}
+                  </div>
+                </motion.div>
+              ))}
             </motion.div>
           )}
         </AnimatePresence>
@@ -356,7 +378,7 @@ const Page = () => {
             {history.length === 0 ? (
               <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>아직 저장된 기록이 없습니다.</p>
             ) : (
-              <div className="history-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1) )', gap: '1rem' }}>
+              <div className="history-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {history.map((item) => (
                     <div 
@@ -456,7 +478,7 @@ const Page = () => {
           {klingPrompts.length > 0 && (
             <motion.section 
               key="kling-section"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 0 }}
               animate={{ opacity: 1, x: 0 }}
               className="glass-panel result-section"
             >
@@ -521,34 +543,31 @@ const Page = () => {
 
       {/* Toast Notification */}
       <AnimatePresence>
-        {toast.visible && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, x: '-50%' }}
-            animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, y: 20, x: '-50%' }}
-            style={{
-              position: 'fixed',
-              bottom: '2rem',
-              left: '50%',
-              backgroundColor: toast.type === 'success' ? 'var(--success-color)' : '#ef4444',
-              color: 'white',
-              padding: '1rem 2rem',
+        {showToast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            style={{ 
+              position: 'fixed', 
+              bottom: '2rem', 
+              right: '2rem', 
+              background: 'var(--success-color)', 
+              color: 'white', 
+              padding: '1rem 2rem', 
               borderRadius: '12px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+              boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
               zIndex: 1000,
-              fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: '10px'
             }}
           >
-            {toast.type === 'success' ? <CheckCircle2 size={18} /> : <RotateCcw size={18} />}
-            {toast.message}
+            <CheckCircle2 size={20} />
+            노션 데이터베이스에 성공적으로 저장되었습니다!
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
-};
-
-export default Page;
+}

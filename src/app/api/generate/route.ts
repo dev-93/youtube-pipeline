@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateContent } from '@/lib/gemini';
+import fs from 'fs';
+import path from 'path';
 
 interface Scene {
   sceneNumber: number;
@@ -7,13 +9,16 @@ interface Scene {
 }
 
 const AGENT_PROMPTS = {
-  theme: `당신은 "왜 안돼?"(Why Not?) 시리즈 전용 쇼츠 주제 추천 전문가입니다. 
+  theme: (trends: string) => `당신은 "왜 안돼?"(Why Not?) 시리즈 전용 쇼츠 주제 추천 전문가입니다. 
 아이들이 "왜 하면 안 되는지 모르는 행동"을 소재로 부모는 교육 효과를, 아이들은 재미를 느낄 수 있는 글로벌 타겟 주제 5가지를 생성하세요.
+
+최근 트렌드 데이터 (참고용):
+${trends}
 
 조건:
 1. 형식: 반드시 "왜 ~하면 안돼?" 또는 "절대 ~하면 안 되는 이유" 형태를 고수하세요.
-2. 소재: 등산 중 너구리(광견병), 차도 위험성, 모르는 사람 따라가기, 높은 곳에서 뛰어내리기, 날카로운 도구 등 '안전'과 '과학적 이유'가 결합된 소재 우선.
-3. 의외성: 금지/경고 뒤에 숨겨진 의외의 사실이나 섬뜩하지만 유익한 과학적 근거를 포함하세요.
+2. 소재: 위 트렌드 데이터를 적극 활용하되, 등산 중 너구리(광견병), 차도 위험성, 모르는 사람 따라가기, 높은 곳에서 뛰어내리기, 날카로운 도구 등 '안전'과 '과학적 이유'가 결합된 소재 우선.
+3. 의외성: 금지/경고 뒤에 숨겨진 의외의 사실이나 섬뜩하지만 유익한 과학적 근거를 포함하세요. (3~7세 타겟이지만 어른도 "진짜?" 할 만한 포인트 필수)
 4. 타겟: 부모가 아이에게 보여주고 싶고, 아이들이 스스로 보고 싶어 하는 B급 감성 교육 콘텐츠.
 5. 차별화: 단순 지식 전달이 아닌, 시각적 충격을 줄 수 있는 '이유'가 명확한 주제를 선정하세요.
 
@@ -69,7 +74,18 @@ export const POST = async (request: Request) => {
     let prompt = '';
     switch (step) {
       case 'theme':
-        prompt = AGENT_PROMPTS.theme;
+        let trendsContent = '';
+        try {
+          const trendsPath = path.join(process.cwd(), 'data/trends.json');
+          if (fs.existsSync(trendsPath)) {
+            const rawTrends = fs.readFileSync(trendsPath, 'utf8');
+            const trendsArr = JSON.parse(rawTrends);
+            trendsContent = trendsArr.map((t: any) => `- ${t.keyword}: ${t.description}`).join('\n');
+          }
+        } catch (e) {
+          console.error("Failed to read trends file", e);
+        }
+        prompt = AGENT_PROMPTS.theme(trendsContent);
         break;
       case 'scenario':
         prompt = AGENT_PROMPTS.scenario(theme);
@@ -85,7 +101,6 @@ export const POST = async (request: Request) => {
     }
 
     const text = await generateContent(prompt + "\nJSON 코드만 출력하고 다른 설명은 하지 마세요.");
-    // Remove JSON markdown code blocks if necessary
     const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const data = JSON.parse(jsonStr);
 

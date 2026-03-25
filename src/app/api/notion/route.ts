@@ -9,7 +9,7 @@ const DATABASE_ID = process.env.NOTION_DATABASE_ID!;
 
 export const GET = async () => {
   try {
-    const response = await (notion as any).databases.query({
+    const response = await notion.databases.query({
       database_id: DATABASE_ID,
       sorts: [
         {
@@ -26,23 +26,11 @@ export const GET = async () => {
   }
 };
 
-const chunkText = (text: string): { text: { content: string } }[] => {
-  const chunks = [];
-  for (let i = 0; i < text.length; i += 2000) {
-    chunks.push({
-      text: {
-        content: text.substring(i, i + 2000),
-      },
-    });
-  }
-  return chunks;
-};
-
 export const POST = async (request: Request) => {
   try {
     const { theme, scenario, klingPrompts, marketing, status } = await request.json();
 
-    const properties: Record<string, any> = {
+    const properties: any = {
       'Name': {
         title: [
           {
@@ -53,8 +41,8 @@ export const POST = async (request: Request) => {
         ],
       },
       '상태': {
-        select: {
-          name: status || '아이디어',
+        status: {
+          name: status === '생성 완료' ? 'Done' : status === '진행 중' ? 'In progress' : 'Not started',
         },
       },
       '생성일': {
@@ -64,34 +52,90 @@ export const POST = async (request: Request) => {
       },
     };
 
+    const children: any[] = [];
+
+    // 시나리오 본문에 추가
     if (scenario) {
+      children.push({
+        object: 'block',
+        type: 'heading_2',
+        heading_2: {
+          rich_text: [{ type: 'text', text: { content: '🎬 시나리오' } }],
+        },
+      });
+      
       const scenarioText = Array.isArray(scenario) 
-        ? scenario.map((s: { sceneNumber: number; description: string }) => `${s.sceneNumber}. ${s.description}`).join('\n')
+        ? scenario.map((s: any) => `${s.sceneNumber}. ${s.description}`).join('\n\n')
         : scenario;
-      properties['시나리오'] = {
-        rich_text: chunkText(scenarioText),
-      };
+
+      children.push({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: {
+          rich_text: [{ type: 'text', text: { content: scenarioText.substring(0, 2000) } }],
+        },
+      });
+      
+      if (scenarioText.length > 2000) {
+        children.push({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [{ type: 'text', text: { content: scenarioText.substring(2000, 4000) } }],
+          },
+        });
+      }
     }
 
+    // 프롬프트 본문에 코드 블록으로 추가
     if (klingPrompts) {
+      children.push({
+        object: 'block',
+        type: 'heading_2',
+        heading_2: {
+          rich_text: [{ type: 'text', text: { content: '🤖 Kling 영상 생성 프롬프트' } }],
+        },
+      });
+
       const promptText = Array.isArray(klingPrompts)
-        ? klingPrompts.map((p: { sceneNumber: number; englishPrompt: string }) => `Scene ${p.sceneNumber}: ${p.englishPrompt}`).join('\n')
+        ? klingPrompts.map((p: any) => `[Scene ${p.sceneNumber}]\n${p.englishPrompt}`).join('\n\n')
         : klingPrompts;
-      properties['프롬프트'] = {
-        rich_text: chunkText(promptText),
-      };
+
+      children.push({
+        object: 'block',
+        type: 'code',
+        code: {
+          language: 'markdown',
+          rich_text: [{ type: 'text', text: { content: promptText.substring(0, 2000) } }],
+        },
+      });
     }
 
+    // 마케팅 정보 추가
     if (marketing) {
-      const marketingText = `제목: ${marketing.title}\n해시태그: ${marketing.hashtags}\n설명: ${marketing.description}`;
-      properties['마케팅 데이터'] = {
-        rich_text: chunkText(marketingText),
-      };
+      children.push({
+        object: 'block',
+        type: 'heading_2',
+        heading_2: {
+          rich_text: [{ type: 'text', text: { content: '📱 마케팅 정보' } }],
+        },
+      });
+
+      const marketingText = `제목: ${marketing.title}\n\n해시태그: ${marketing.hashtags}\n\n설명: ${marketing.description}`;
+      
+      children.push({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: {
+          rich_text: [{ type: 'text', text: { content: marketingText } }],
+        },
+      });
     }
 
-    const response = await (notion as any).pages.create({
+    const response = await notion.pages.create({
       parent: { database_id: DATABASE_ID },
       properties,
+      children: children.length > 0 ? children : undefined,
     });
 
     return NextResponse.json(response);

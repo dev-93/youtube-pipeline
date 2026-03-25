@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   PenTool, 
@@ -10,6 +10,9 @@ import {
   Copy, 
   RotateCcw,
   TrendingUp,
+  Sparkles,
+  Calendar,
+  ChevronRight,
 } from 'lucide-react';
 
 type Step = 'theme' | 'scenario' | 'kling' | 'marketing';
@@ -46,6 +49,13 @@ const AGENTS = [
   { id: 'marketing', name: '마케터', icon: Share2 },
 ];
 
+interface TrendItem {
+  keyword: string;
+  theme: string;
+  description: string;
+  target: string;
+}
+
 const Page = () => {
   const [inputTheme, setInputTheme] = useState('');
   const [themes, setThemes] = useState<string[]>([]);
@@ -58,6 +68,8 @@ const Page = () => {
   const [completedSteps, setCompletedSteps] = useState<Step[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [weeklyTrends, setWeeklyTrends] = useState<TrendItem[]>([]);
+  const [showWeeklyTrends, setShowWeeklyTrends] = useState(true);
 
   // Load history on mount
   useState(() => {
@@ -79,6 +91,22 @@ const Page = () => {
     setHistory(updated);
     localStorage.setItem('youtube_history', JSON.stringify(updated));
   };
+
+  // Fetch weekly trends on mount
+  useEffect(() => {
+    const fetchWeeklyTrends = async () => {
+      try {
+        const res = await fetch('/api/trends');
+        const data = await res.json();
+        if (data.trends) {
+          setWeeklyTrends(data.trends);
+        }
+      } catch (err) {
+        console.error('Failed to fetch weekly trends', err);
+      }
+    };
+    fetchWeeklyTrends();
+  }, []);
 
   const fetchAgent = async (step: Step, body: Record<string, unknown>) => {
     setLoadingStep(step);
@@ -211,6 +239,70 @@ const Page = () => {
         </motion.h1>
         <p className="subtitle">유튜브 숏츠 자동화 파이프라인 에이전트</p>
       </header>
+
+      {/* Weekly Trends Section */}
+      <section style={{ marginBottom: '3rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={20} className="text-secondary" /> 이번 주 추천 트렌드
+          </h2>
+          <button 
+            className="btn-secondary" 
+            onClick={() => setShowWeeklyTrends(!showWeeklyTrends)}
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+          >
+            {showWeeklyTrends ? '접기' : '모두 보기'}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showWeeklyTrends && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}
+            >
+              {weeklyTrends.length === 0 ? (
+                <div className="glass-panel" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '2rem' }}>
+                  <p style={{ color: 'var(--text-secondary)' }}>월요일 오전에 새로운 트렌드가 업데이트됩니다.</p>
+                </div>
+              ) : (
+                weeklyTrends.map((trend, idx) => (
+                  <motion.div 
+                    key={idx}
+                    whileHover={{ scale: 1.02 }}
+                    className={`glass-panel ${selectedTheme === trend.theme ? 'selected-item' : ''}`}
+                    style={{ padding: '1.5rem', marginBottom: 0, cursor: 'pointer', transition: 'all 0.3s ease' }}
+                    onClick={() => {
+                      setSelectedTheme(trend.theme);
+                      setThemes([trend.theme]);
+                      setCompletedSteps(['theme']);
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
+                      <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>
+                        {trend.target}
+                      </span>
+                      <Sparkles size={14} style={{ color: 'var(--accent-color)' }} />
+                    </div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                      {trend.theme}
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {trend.description}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-color)' }}>#{trend.keyword}</span>
+                      <ChevronRight size={16} />
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
 
       {/* Step Progress */}
       <div className="agent-steps">

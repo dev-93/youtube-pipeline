@@ -9,6 +9,7 @@ const DATABASE_ID = process.env.NOTION_DATABASE_ID!;
 
 export const GET = async () => {
   try {
+    // @ts-expect-error - Notion SDK 5.14.0 has missing type for databases.query
     const response = await notion.databases.query({
       database_id: DATABASE_ID,
       sorts: [

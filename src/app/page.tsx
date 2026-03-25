@@ -70,6 +70,17 @@ const Page = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [weeklyTrends, setWeeklyTrends] = useState<TrendItem[]>([]);
   const [showWeeklyTrends, setShowWeeklyTrends] = useState(true);
+  
+  const [toast, setToast] = useState<{ message: string; visible: boolean; type: 'success' | 'error' }>({
+    message: '',
+    visible: false,
+    type: 'success',
+  });
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, visible: true, type });
+    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
+  };
 
   // Load history on mount
   useState(() => {
@@ -121,7 +132,7 @@ const Page = () => {
       return data;
     } catch (err) {
       console.error(err);
-      alert('에러가 발생했습니다. 다시 시도해주세요.');
+      showToast('에러가 발생했습니다. 다시 시도해주세요.', 'error');
       return null;
     } finally {
       setLoadingStep(null);
@@ -137,7 +148,7 @@ const Page = () => {
   };
 
   const startPipeline = async () => {
-    if (!selectedTheme) return alert('주제를 먼저 선택해주세요.');
+    if (!selectedTheme) return showToast('주제를 먼저 선택해주세요.', 'error');
 
     // Step 2: Scenario
     const scenarioData = await fetchAgent('scenario', { theme: selectedTheme });
@@ -185,7 +196,7 @@ const Page = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const saveToNotion = async (data: any, status = '아이디어') => {
+  const saveToNotion = async (data: Record<string, unknown>, status = '아이디어') => {
     try {
       const res = await fetch('/api/notion', {
         method: 'POST',
@@ -197,7 +208,7 @@ const Page = () => {
       return result;
     } catch (err) {
       console.error(err);
-      alert('노션 저장 중 에러가 발생했습니다. API 키를 확인해주세요.');
+      showToast('노션 저장 중 에러가 발생했습니다. API 키를 확인해주세요.', 'error');
       return null;
     }
   };
@@ -208,12 +219,12 @@ const Page = () => {
       await saveToNotion({ theme });
     }
     setLoadingStep(null);
-    alert(`${themes.length}개의 주제가 노션 '아이디어' 보드로 저장되었습니다!`);
+    showToast(`${themes.length}개의 주제가 노션 '아이디어' 보드로 저장되었습니다!`);
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('클립보드에 복사되었습니다!');
+    showToast('클립보드에 복사되었습니다!');
   };
 
   const resetAll = () => {
@@ -507,6 +518,35 @@ const Page = () => {
       <footer style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
         © 2026 왜 안돼? 유튜브 파이프라인 에이전트. Inspired by Premium AI Workflow.
       </footer>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 20, x: '-50%' }}
+            style={{
+              position: 'fixed',
+              bottom: '2rem',
+              left: '50%',
+              backgroundColor: toast.type === 'success' ? 'var(--success-color)' : '#ef4444',
+              color: 'white',
+              padding: '1rem 2rem',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+              zIndex: 1000,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}
+          >
+            {toast.type === 'success' ? <CheckCircle2 size={18} /> : <RotateCcw size={18} />}
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

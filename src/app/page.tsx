@@ -246,9 +246,9 @@ const Page = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          왜 안돼?
+          AI Shorts Agent
         </motion.h1>
-        <p className="subtitle">유튜브 숏츠 자동화 파이프라인 에이전트</p>
+        <p className="subtitle">AI 유튜브 쇼츠 자동화 파이프라인</p>
       </header>
 
       {/* Weekly Trends Section */}
@@ -516,7 +516,7 @@ const Page = () => {
       </main>
 
       <footer style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-        © 2026 왜 안돼? 유튜브 파이프라인 에이전트. Inspired by Premium AI Workflow.
+        © 2026 AI Shorts Agent. Inspired by Premium AI Workflow.
       </footer>
 
       {/* Toast Notification */}

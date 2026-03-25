@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "왜 안돼? | 유튜브 숏츠 자동화 파이프라인",
-  description: "유튜브 쇼츠 제작을 위한 스마트 에이전트 파이프라인",
+  title: "AI Shorts Agent | 유튜브 쇼츠 자동화 파이프라인",
+  description: "AI로 만드는 스마트 유튜브 쇼츠 파이프라인",
 };
 
 export default function RootLayout({

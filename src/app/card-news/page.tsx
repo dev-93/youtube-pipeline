@@ -15,9 +15,11 @@ import {
   CloudUpload,
   Globe,
   Database,
-  Layout
+  Layout,
+  Download
 } from 'lucide-react';
 import Link from 'next/link';
+import { toJpeg } from 'html-to-image';
 import CardPreview from './components/CardPreview';
 
 type CardNewsStep = 'card_trends' | 'card_writer' | 'card_image' | 'card_marketer';
@@ -256,6 +258,27 @@ export default function CardNewsPage() {
     setCardDesigns([]);
     setMarketing(null);
     setCompletedSteps([]);
+  };
+
+  const handleTextChange = (cardIndex: number, field: keyof CardContent, value: string) => {
+    const newCards = [...cards];
+    newCards[cardIndex] = { ...newCards[cardIndex], [field]: value };
+    setCards(newCards);
+  };
+
+  const handleDownloadImage = async (cardNum: number) => {
+    const el = document.getElementById(`card-preview-${cardNum}`);
+    if (!el) return;
+    try {
+      const dataUrl = await toJpeg(el, { quality: 0.95, pixelRatio: 2 });
+      const link = document.createElement('a');
+      link.download = `card_${cardNum}.jpg`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to download image', err);
+      alert('이미지 저장에 실패했습니다.');
+    }
   };
 
   return (
@@ -517,19 +540,78 @@ export default function CardNewsPage() {
                 </button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-                {cards.map((card) => (
+                {cards.map((card, idx) => (
                   <div key={card.card} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <CardPreview 
-                      cardData={card} 
-                      design={cardDesigns.find(d => d.card === card.card)} 
-                    />
-                    <div className="content-box" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <p style={{ color: 'var(--accent-color)', fontWeight: 700, marginBottom: '0.5rem' }}>Card {card.card} 상세 텍스트</p>
-                      {card.title && <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{card.title}</p>}
-                      {card.subtitle && <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{card.subtitle}</p>}
-                      {card.body && <p style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{card.body}</p>}
-                      {card.question && <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--accent-color)' }}>Q: {card.question}</p>}
-                      {card.preview && <p style={{ fontSize: '0.9rem', fontStyle: 'italic', marginTop: '0.5rem' }}>Next: {card.preview}</p>}
+                   
+                    {/* Preview Wrapper */}
+                    <div style={{ position: 'relative' }}>
+                      <div id={`card-preview-${card.card}`} style={{ background: '#000', borderRadius: '32px' }}>
+                        <CardPreview 
+                          cardData={card} 
+                          design={cardDesigns.find(d => d.card === card.card)} 
+                        />
+                      </div>
+                      <button 
+                        onClick={() => handleDownloadImage(card.card)}
+                        style={{ 
+                          position: 'absolute', top: '10px', right: '10px', 
+                          background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', 
+                          padding: '8px', borderRadius: '50%', color: '#fff', border: 'none', cursor: 'pointer' 
+                        }}
+                        title="이미지 저장"
+                      >
+                        <Download size={18} />
+                      </button>
+                    </div>
+
+                    {/* Editor Form */}
+                    <div className="content-box editable-form" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <p style={{ color: 'var(--accent-color)', fontWeight: 700, marginBottom: '0.5rem' }}>Card {card.card} 상세 텍스트 편집기</p>
+                      
+                      {card.title !== undefined && (
+                        <input 
+                          type="text" 
+                          value={card.title || ''} 
+                          onChange={(e) => handleTextChange(idx, 'title', e.target.value)}
+                          style={{ width: '100%', padding: '8px', marginBottom: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+                        />
+                      )}
+                      
+                      {card.subtitle !== undefined && (
+                        <input 
+                          type="text" 
+                          value={card.subtitle || ''} 
+                          onChange={(e) => handleTextChange(idx, 'subtitle', e.target.value)}
+                          style={{ width: '100%', padding: '8px', marginBottom: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', borderRadius: '4px' }}
+                        />
+                      )}
+                      
+                      {card.body !== undefined && (
+                        <textarea 
+                          rows={4}
+                          value={card.body || ''} 
+                          onChange={(e) => handleTextChange(idx, 'body', e.target.value)}
+                          style={{ width: '100%', padding: '8px', marginBottom: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', resize: 'vertical' }}
+                        />
+                      )}
+                      
+                      {card.question !== undefined && (
+                        <input 
+                          type="text" 
+                          value={card.question || ''} 
+                          onChange={(e) => handleTextChange(idx, 'question', e.target.value)}
+                          style={{ width: '100%', padding: '8px', marginBottom: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--accent-color)', borderRadius: '4px' }}
+                        />
+                      )}
+                      
+                      {card.preview !== undefined && (
+                        <input 
+                          type="text" 
+                          value={card.preview || ''} 
+                          onChange={(e) => handleTextChange(idx, 'preview', e.target.value)}
+                          style={{ width: '100%', padding: '8px', marginBottom: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#aaa', borderRadius: '4px' }}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}

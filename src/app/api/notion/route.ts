@@ -113,11 +113,11 @@ export const POST = async (request: Request) => {
         },
       });
 
-      const promptText = Array.isArray(klingPrompts)
+          const promptText = Array.isArray(klingPrompts)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? klingPrompts.map((p: any) => {
             if (p.sceneNumber) return `[Scene ${p.sceneNumber}]\n${p.englishPrompt}`;
-            if (p.card) return `[Card ${p.card} - ${p.style}]\n${p.prompt}`;
+            if (p.card) return `[Card ${p.card} - ${p.themeName || 'Design'}]\nGradient: ${p.gradientFrom} -> ${p.gradientTo}\nGlow: ${p.glowColor}\nAccent: ${p.accentColor}`;
             return JSON.stringify(p);
           }).join('\n\n')
         : klingPrompts;
@@ -142,7 +142,9 @@ export const POST = async (request: Request) => {
         },
       });
 
-      const marketingText = `제목: ${marketing.title}\n\n해시태그: ${marketing.hashtags}\n\n설명: ${marketing.description}`;
+      const marketingText = marketing.caption
+        ? `캡션: ${marketing.caption}\n\n해시태그: ${marketing.hashtags}`
+        : `제목: ${marketing.title}\n\n해시태그: ${marketing.hashtags}\n\n설명: ${marketing.description}`;
       
       children.push({
         object: 'block',

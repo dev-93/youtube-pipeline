@@ -78,27 +78,28 @@ ${trends}
 
   card_writer: (topic: string) => `너는 인스타그램 카드뉴스 전문 작가야. 현재 연도는 2026년이야.
 주어진 주제 "${topic}"으로 카드뉴스 5장 텍스트를 작성해줘.
-주의사항:
-- 가상의 인물(예: "김대리", "철수")이나 허무맹랑한 수익 인증 사례를 절대 지어내지 마.
-- 철저하게 팩트 기반의 정보나, 현실적으로 당장 시도해볼 수 있는 실전 꿀팁 위주로 구성해.
-- UI 디자인에 깔끔하게 들어가야 하므로, **마크다운의 볼드체 기호(**)**는 절대 사용하지 마.
-- 텍스트가 너무 길면 디자인이 망가지므로, 문장은 핵심만 아주 간결하게(각 카드당 2~3줄 이내) 작성해.
 
-카드 구성:
-- 1장: 후킹 제목 (30자 이내) + 부제목 (40자 이내)
-- 2장: 핵심 데이터나 사실 1개 + 설명 2줄 (허구 통계 금지)
-- 3장: 핵심 인사이트 1개 + 설명 2줄
-- 4장: 현실적인 솔루션이나 체크리스트 + 설명 2줄 (가상 인물 스토리 금지)
-- 5장: 독자 댓글 유도 질문 + 다음편 예고 한줄
-톤: 친근하고 쉽게, 20-30대가 읽기 편한 문체.
-반드시 JSON으로만 응답. 다른 텍스트 없이.
-형식: 
+주의사항:
+- 가상의 인물(예: "김대리", "철수")이나 허구의 사례를 지어내지 마.
+- 철저하게 팩트 기반 정보나 실전 꿀팁 위주로 구성해.
+- UI 디자인을 위해 **마크다운 볼드체(**)**는 절대 사용하지 마.
+- 문장은 핵심만 아주 간결하게(각 카드당 2~3줄 이내) 작성해.
+- 텍스트 내부에 큰따옴표(")가 필요할 경우 반드시 JSON 이스케이프 형식을 지켜줘.
+
+카드 구성 (반드시 5개의 객체를 가진 배열로 응답):
+1. [표지]: 제목(30자 이내) + 부제목(40자 이내)
+2. [정보]: 핵심 데이터/사실 1개 + 설명 2줄
+3. [인사이트]: 핵심 인사이트 1개 + 설명 2줄
+4. [솔루션]: 실전 솔루션/체크리스트 + 설명 2줄
+5. [엔딩]: 독자 참여 질문 + 다음편 예고
+
+스키마 형식:
 [
-  {"card":1,"title":"...","subtitle":"..."},
-  {"card":2,"title":"...","body":"..."},
-  {"card":3,"title":"...","body":"..."},
-  {"card":4,"title":"...","body":"..."},
-  {"card":5,"question":"...","preview":"..."}
+  {"card": 1, "title": "...", "subtitle": "..."},
+  {"card": 2, "title": "...", "body": "..."},
+  {"card": 3, "title": "...", "body": "..."},
+  {"card": 4, "title": "...", "body": "..."},
+  {"card": 5, "question": "...", "preview": "..."}
 ]`,
 
   card_image: (cards: Array<Record<string, unknown>>) => {
@@ -187,9 +188,27 @@ export const POST = async (request: Request) => {
         return NextResponse.json({ error: 'Invalid step' }, { status: 400 });
     }
 
-    const text = await generateContent(prompt + "\nJSON 코드만 출력하고 다른 설명은 하지 마세요.");
-    const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const data = JSON.parse(jsonStr);
+    // 모든 스텝이 JSON 형식을 요구하므로 기본적으로 true
+    const text = await generateContent(prompt, true);
+    
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('JSON Parsing Error. Raw text:', text);
+      // JSON 모드 사용 시에도 혹시 모를 상황 대비 (가끔 마크다운 블록이 섞여 나올 때를 대비)
+      try {
+        const jsonMatch = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+        if (jsonMatch) {
+          data = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('JSON format not found in response');
+        }
+      } catch (innerError) {
+        console.error('Final Parsing Error:', innerError);
+        throw new Error(`AI 응답 파싱 실패: ${e instanceof Error ? e.message : 'Invalid JSON'}`);
+      }
+    }
 
     return NextResponse.json(data);
   } catch (error) {

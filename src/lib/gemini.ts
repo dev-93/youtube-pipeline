@@ -6,8 +6,12 @@ const genAI = new GoogleGenerativeAI(apiKey);
 
 export const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-export const generateContent = async (prompt: string) => {
-  const result = await model.generateContent(prompt);
+export const generateContent = async (prompt: string, isJson: boolean = false) => {
+  const generationConfig = isJson ? { responseMimeType: "application/json" } : {};
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig
+  });
   const response = await result.response;
   return response.text();
 };

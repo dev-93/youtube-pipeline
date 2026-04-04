@@ -27,6 +27,8 @@ interface StyleHistoryItem {
   stylePrompt: string;
   resultImage: string;
   timestamp: string;
+  marketingCaption?: string;
+  hashtags?: string[];
 }
 
 export default function StyleTransferPage() {
@@ -43,6 +45,10 @@ export default function StyleTransferPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  
+  // Marketing states
+  const [marketingCaption, setMarketingCaption] = useState('');
+  const [hashtags, setHashtags] = useState<string[]>([]);
 
   const refInputRef = useRef<HTMLInputElement>(null);
   const prodInputRef = useRef<HTMLInputElement>(null);
@@ -125,8 +131,8 @@ export default function StyleTransferPage() {
   };
 
   const startTransfer = async () => {
-    if (referenceImages.length === 0 || !productImage) {
-      alert('레퍼런스 이미지와 제품 이미지를 모두 업로드해주세요.');
+    if (!productImage) {
+      alert('제품 이미지를 업로드해주세요.');
       return;
     }
 
@@ -169,6 +175,8 @@ export default function StyleTransferPage() {
 
       setStylePrompt(data.stylePrompt);
       setResultImage(data.generatedImage);
+      setMarketingCaption(data.marketingCaption || '');
+      setHashtags(data.hashtags || []);
       setStatus('completed');
 
       // Save to local history
@@ -177,7 +185,9 @@ export default function StyleTransferPage() {
         productName: productName || '브랜드 제품',
         stylePrompt: data.stylePrompt,
         resultImage: data.generatedImage,
-        timestamp: new Date().toLocaleString()
+        timestamp: new Date().toLocaleString(),
+        marketingCaption: data.marketingCaption,
+        hashtags: data.hashtags
       };
       saveToHistory(newItem);
 
@@ -200,6 +210,10 @@ export default function StyleTransferPage() {
           theme: productName || '스타일 변환 결과',
           scenario: stylePrompt, 
           imageUrl: resultImage,
+          marketing: {
+            caption: marketingCaption,
+            hashtags: hashtags.join(' ')
+          },
           status: '생성 완료'
         }),
       });
@@ -229,6 +243,8 @@ export default function StyleTransferPage() {
     setProductName(item.productName);
     setStylePrompt(item.stylePrompt);
     setResultImage(item.resultImage);
+    setMarketingCaption(item.marketingCaption || '');
+    setHashtags(item.hashtags || []);
     setStatus('completed');
     setShowHistory(false);
   };
@@ -442,50 +458,87 @@ export default function StyleTransferPage() {
                   className="btn-primary" 
                   style={{ padding: '1.2rem 4rem', fontSize: '1.2rem', borderRadius: '50px' }}
                   onClick={startTransfer}
-                  disabled={referenceImages.length === 0 || !productImage}
+                  disabled={!productImage}
                 >
-                  스타일 변환 시작 <ArrowRight size={20} style={{ marginLeft: '10px', display: 'inline' }} />
+                  {referenceImages.length > 0 ? '스타일 변환 시작' : 'AI 자동 브랜딩 시작'} 
+                  <ArrowRight size={20} style={{ marginLeft: '10px', display: 'inline' }} />
                 </button>
               </div>
             </motion.div>
           ) : (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-              <div className="glass-panel" style={{ textAlign: 'center' }}>
+              <div className="glass-panel">
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
                   <div style={{ background: 'var(--success-color)', padding: '10px', borderRadius: '50%', color: 'white' }}>
                     <CheckCircle2 size={32} />
                   </div>
                 </div>
-                <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '2rem' }}>변환 완료!</h2>
+                <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '2rem', textAlign: 'center' }}>브랜딩 디자인 완료!</h2>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
-                  <div className="content-box">
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontWeight: 600 }}>추출된 스타일 프롬프트</p>
-                    <p style={{ fontSize: '1rem', lineHeight: 1.6, fontStyle: 'italic', color: '#fff' }}>"{stylePrompt}"</p>
-                  </div>
-                  <div style={{ position: 'relative', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+                  {/* Left: Generated Image */}
+                  <div style={{ position: 'relative', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     {resultImage && <img src={resultImage} alt="Generated" style={{ width: '100%', height: 'auto', display: 'block' }} />}
                     <button 
                       onClick={downloadResult}
-                      style={{ position: 'absolute', bottom: '20px', right: '20px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      style={{ position: 'absolute', bottom: '20px', right: '20px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
-                      <Download size={18} /> 저장하기
+                      <Download size={18} /> 고화질 저장
                     </button>
+                  </div>
+
+                  {/* Right: Marketing Agent Content */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div className="content-box" style={{ background: 'rgba(99, 102, 241, 0.05)', borderColor: 'rgba(99, 102, 241, 0.2)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', color: '#818cf8', fontWeight: 700 }}>
+                        <Sparkles size={18} /> 인스타 마케팅 에이전트 가이드
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1.5rem', borderRadius: '16px', marginBottom: '1rem' }}>
+                        <p style={{ fontSize: '1rem', lineHeight: 1.7, color: '#e5e7eb', whiteSpace: 'pre-wrap' }}>
+                          {marketingCaption || "캡션을 생성 중입니다..."}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '1.5rem' }}>
+                        {hashtags.map((tag, i) => (
+                          <span key={i} style={{ fontSize: '0.85rem', color: '#818cf8', background: 'rgba(99, 102, 241, 0.1)', padding: '4px 10px', borderRadius: '8px' }}>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '0.9rem' }}
+                        onClick={() => {
+                          const text = `${marketingCaption}\n\n${hashtags.join(' ')}`;
+                          navigator.clipboard.writeText(text);
+                          alert('마케팅 문구가 복사되었습니다!');
+                        }}
+                      >
+                        마케팅 문구 전체 복사
+                      </button>
+                    </div>
+
+                    <div className="content-box">
+                      <p style={{ color: 'var(--text-secondary)', marginBottom: '0.8rem', fontSize: '0.85rem', fontWeight: 600 }}>생성 프롬프트 (AI Decision)</p>
+                      <p style={{ fontSize: '0.9rem', lineHeight: 1.5, color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                        {stylePrompt}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-                  <button className="btn-secondary" onClick={() => setStatus('idle')}>
-                    새로 만들기
+                  <button className="btn-secondary" onClick={() => setStatus('idle')} style={{ padding: '0.8rem 2rem' }}>
+                    <RotateCcw size={16} style={{ marginRight: '8px', display: 'inline' }} /> 새로 만들기
                   </button>
                   <button 
                     className="btn-primary" 
                     onClick={saveToNotion} 
                     disabled={saveLoading}
-                    style={{ background: '#000', color: '#fff', border: '1px solid #333' }}
+                    style={{ background: '#fff', color: '#000', padding: '0.8rem 2rem' }}
                   >
-                    <CloudUpload size={14} style={{ marginRight: '5px', display: 'inline' }} /> 
-                    {saveLoading ? '저장 중...' : '노션에 저장'}
+                    <CloudUpload size={16} style={{ marginRight: '8px', display: 'inline' }} /> 
+                    {saveLoading ? '저장 중...' : '노션에 마케팅 데이터 저장'}
                   </button>
                 </div>
               </div>

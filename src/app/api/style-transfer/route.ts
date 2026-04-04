@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { generateVisualContent } from '@/lib/gemini';
 
-const FAL_KEY = process.env.FAL_KEY;
-
 export async function POST(request: Request) {
+  const FAL_KEY = process.env.FAL_KEY;
+  
+  if (!FAL_KEY) {
+    console.error('FAL_KEY is not defined in environment variables.');
+    return NextResponse.json({ error: 'FAL AI 인증 키가 설정되지 않았습니다. 배포 설정(Vercel)을 확인해주세요.' }, { status: 500 });
+  }
+
   try {
     console.log('--- Style Transfer Started ---');
     const { referenceImages, productImage, productName } = await request.json();

@@ -105,9 +105,23 @@ export default function StyleTransferPage() {
   };
 
   const saveToHistory = (item: StyleHistoryItem) => {
-    const updated = [item, ...history].slice(0, 10);
-    setHistory(updated);
-    localStorage.setItem('style_transfer_history', JSON.stringify(updated));
+    try {
+      const updated = [item, ...history].slice(0, 10);
+      setHistory(updated);
+      
+      try {
+        localStorage.setItem('style_transfer_history', JSON.stringify(updated));
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+          // 용량 부족 시 절반으로 더 줄여서 저장
+          const minimal = updated.slice(0, 5);
+          localStorage.setItem('style_transfer_history', JSON.stringify(minimal));
+          setHistory(minimal);
+        }
+      }
+    } catch (err) {
+      console.error('History Error:', err);
+    }
   };
 
   const startTransfer = async () => {

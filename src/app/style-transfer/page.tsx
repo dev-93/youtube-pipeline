@@ -2,13 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Sparkles, 
-  Upload, 
-  Image as ImageIcon, 
-  Trash2, 
-  ArrowRight, 
-  CheckCircle2, 
+import {
+  Sparkles,
+  Upload,
+  Image as ImageIcon,
+  Trash2,
+  ArrowRight,
+  CheckCircle2,
   Download,
   Search,
   Zap,
@@ -39,13 +39,13 @@ export default function StyleTransferPage() {
   const [stylePrompt, setStylePrompt] = useState('');
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // History states
   const [history, setHistory] = useState<StyleHistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  
+
   // Marketing states
   const [marketingCaption, setMarketingCaption] = useState('');
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -97,7 +97,7 @@ export default function StyleTransferPage() {
       reader.onloadend = () => {
         const base64 = reader.result as string;
         if (type === 'reference') {
-          setReferenceImages(prev => [...prev, base64].slice(0, 5)); 
+          setReferenceImages(prev => [...prev, base64].slice(0, 5));
         } else {
           setProductImage(base64);
         }
@@ -114,7 +114,7 @@ export default function StyleTransferPage() {
     try {
       const updated = [item, ...history].slice(0, 10);
       setHistory(updated);
-      
+
       try {
         localStorage.setItem('style_transfer_history', JSON.stringify(updated));
       } catch (e) {
@@ -202,14 +202,16 @@ export default function StyleTransferPage() {
     if (!resultImage || !stylePrompt) return;
     setSaveLoading(true);
     try {
+      // base64 이미지는 노션에 보내지 않음 (payload 초과 + external URL만 지원)
+      const isUrl = resultImage.startsWith('http');
       const res = await fetch('/api/notion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'style',
           theme: productName || '스타일 변환 결과',
-          scenario: stylePrompt, 
-          imageUrl: resultImage,
+          scenario: stylePrompt,
+          imageUrl: isUrl ? resultImage : undefined,
           marketing: {
             caption: marketingCaption,
             hashtags: hashtags.join(' ')
@@ -221,7 +223,9 @@ export default function StyleTransferPage() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       } else {
-        throw new Error('노션 저장 실패');
+        const errData = await res.json().catch(() => ({}));
+        console.error('Notion Error Details:', errData);
+        throw new Error(errData.details || errData.error || '노션 저장 실패');
       }
     } catch (error) {
       console.error('Notion Error:', error);
@@ -260,7 +264,7 @@ export default function StyleTransferPage() {
         >
           <Zap color="var(--accent-color)" size={40} />
         </motion.div>
-        <motion.h1 
+        <motion.h1
           className="title"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -288,8 +292,8 @@ export default function StyleTransferPage() {
       </header>
 
       <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-        <button 
-          className="btn-secondary" 
+        <button
+          className="btn-secondary"
           onClick={() => setShowHistory(!showHistory)}
           style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}
         >
@@ -299,7 +303,7 @@ export default function StyleTransferPage() {
 
       <AnimatePresence>
         {showHistory && (
-          <motion.section 
+          <motion.section
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -314,9 +318,9 @@ export default function StyleTransferPage() {
             ) : (
               <div className="history-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
                 {history.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="list-item" 
+                  <div
+                    key={item.id}
+                    className="list-item"
                     onClick={() => loadFromHistory(item)}
                     style={{ padding: '0.8rem', fontSize: '0.9rem' }}
                   >
@@ -334,12 +338,12 @@ export default function StyleTransferPage() {
         {/* Loading Overlay (Dimmed background) */}
         <AnimatePresence>
           {(status === 'analyzing' || status === 'transferring') && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              style={{ 
-                position: 'fixed', 
+              style={{
+                position: 'fixed',
                 top: 0, left: 0, right: 0, bottom: 0,
                 background: 'rgba(0, 0, 0, 0.7)',
                 backdropFilter: 'blur(8px)',
@@ -352,7 +356,7 @@ export default function StyleTransferPage() {
                 padding: '2rem'
               }}
             >
-              <motion.div 
+              <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
                 style={{ marginBottom: '2rem' }}
@@ -363,9 +367,9 @@ export default function StyleTransferPage() {
                 {status === 'analyzing' ? 'Gemini가 스타일을 분석 중입니다...' : 'FAL AI가 스타일을 적용하고 있습니다...'}
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.1rem' }}>잠시만 기다려주세요. 약 10~20초 정도 소요됩니다.</p>
-              
+
               <div style={{ marginTop: '2rem', width: '200px', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                <motion.div 
+                <motion.div
                   initial={{ x: '-100%' }}
                   animate={{ x: '100%' }}
                   transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
@@ -376,7 +380,7 @@ export default function StyleTransferPage() {
           )}
         </AnimatePresence>
 
-        <div style={{ 
+        <div style={{
           filter: (status === 'analyzing' || status === 'transferring') ? 'blur(4px)' : 'none',
           opacity: (status === 'analyzing' || status === 'transferring') ? 0.5 : 1,
           pointerEvents: (status === 'analyzing' || status === 'transferring') ? 'none' : 'auto',
@@ -393,7 +397,7 @@ export default function StyleTransferPage() {
                   {referenceImages.map((img, idx) => (
                     <div key={idx} style={{ position: 'relative', aspectRatio: '1/1', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                       <img src={img} alt="Reference" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button 
+                      <button
                         onClick={() => removeReference(idx)}
                         style={{ position: 'absolute', top: '5px', right: '5px', padding: '4px', background: 'rgba(255,0,0,0.6)', borderRadius: '50%', color: 'white' }}
                       >
@@ -402,7 +406,7 @@ export default function StyleTransferPage() {
                     </div>
                   ))}
                   {referenceImages.length < 5 && (
-                    <button 
+                    <button
                       onClick={() => refInputRef.current?.click()}
                       style={{ aspectRatio: '1/1', background: 'rgba(255,255,255,0.03)', border: '2px dashed var(--border-color)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}
                       className="hover-effect"
@@ -422,7 +426,7 @@ export default function StyleTransferPage() {
                   <ImageIcon size={20} color="var(--accent-color)" /> 2. 대상 제품 이미지
                 </h2>
                 <div style={{ display: 'flex', gap: '2rem', alignItems: 'start', flexWrap: 'wrap' }}>
-                  <div 
+                  <div
                     onClick={() => prodInputRef.current?.click()}
                     style={{ width: '200px', height: '200px', background: 'rgba(255,255,255,0.03)', border: '2px dashed var(--border-color)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', cursor: 'pointer', overflow: 'hidden' }}
                     className="hover-effect"
@@ -438,9 +442,9 @@ export default function StyleTransferPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: '300px' }}>
                     <div className="input-group" style={{ marginBottom: '1rem' }}>
-                      <input 
-                        type="text" 
-                        placeholder="제품 이름 (예: 화장품 병, 나이키 운동화...)" 
+                      <input
+                        type="text"
+                        placeholder="제품 이름 (예: 화장품 병, 나이키 운동화...)"
                         value={productName}
                         onChange={(e) => setProductName(e.target.value)}
                       />
@@ -454,13 +458,13 @@ export default function StyleTransferPage() {
               </section>
 
               <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-                <button 
-                  className="btn-primary" 
+                <button
+                  className="btn-primary"
                   style={{ padding: '1.2rem 4rem', fontSize: '1.2rem', borderRadius: '50px' }}
                   onClick={startTransfer}
                   disabled={!productImage}
                 >
-                  {referenceImages.length > 0 ? '스타일 변환 시작' : 'AI 자동 브랜딩 시작'} 
+                  {referenceImages.length > 0 ? '스타일 변환 시작' : 'AI 자동 브랜딩 시작'}
                   <ArrowRight size={20} style={{ marginLeft: '10px', display: 'inline' }} />
                 </button>
               </div>
@@ -474,12 +478,12 @@ export default function StyleTransferPage() {
                   </div>
                 </div>
                 <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '2rem', textAlign: 'center' }}>브랜딩 디자인 완료!</h2>
-                
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
                   {/* Left: Generated Image */}
                   <div style={{ position: 'relative', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     {resultImage && <img src={resultImage} alt="Generated" style={{ width: '100%', height: 'auto', display: 'block' }} />}
-                    <button 
+                    <button
                       onClick={downloadResult}
                       style={{ position: 'absolute', bottom: '20px', right: '20px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
@@ -505,8 +509,8 @@ export default function StyleTransferPage() {
                           </span>
                         ))}
                       </div>
-                      <button 
-                        className="btn-secondary" 
+                      <button
+                        className="btn-secondary"
                         style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '0.9rem' }}
                         onClick={() => {
                           const text = `${marketingCaption}\n\n${hashtags.join(' ')}`;
@@ -531,13 +535,13 @@ export default function StyleTransferPage() {
                   <button className="btn-secondary" onClick={() => setStatus('idle')} style={{ padding: '0.8rem 2rem' }}>
                     <RotateCcw size={16} style={{ marginRight: '8px', display: 'inline' }} /> 새로 만들기
                   </button>
-                  <button 
-                    className="btn-primary" 
-                    onClick={saveToNotion} 
+                  <button
+                    className="btn-primary"
+                    onClick={saveToNotion}
                     disabled={saveLoading}
                     style={{ background: '#fff', color: '#000', padding: '0.8rem 2rem' }}
                   >
-                    <CloudUpload size={16} style={{ marginRight: '8px', display: 'inline' }} /> 
+                    <CloudUpload size={16} style={{ marginRight: '8px', display: 'inline' }} />
                     {saveLoading ? '저장 중...' : '노션에 마케팅 데이터 저장'}
                   </button>
                 </div>
@@ -561,17 +565,17 @@ export default function StyleTransferPage() {
       {/* Toast Notification */}
       <AnimatePresence>
         {showToast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            style={{ 
-              position: 'fixed', 
-              bottom: '2rem', 
-              right: '2rem', 
-              background: 'var(--success-color)', 
-              color: 'white', 
-              padding: '1rem 2rem', 
+            style={{
+              position: 'fixed',
+              bottom: '2rem',
+              right: '2rem',
+              background: 'var(--success-color)',
+              color: 'white',
+              padding: '1rem 2rem',
               borderRadius: '12px',
               boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
               zIndex: 1000,

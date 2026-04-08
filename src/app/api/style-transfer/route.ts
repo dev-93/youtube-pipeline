@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { generateVisualContent } from '@/lib/gemini';
+import { generateVisualContent, generateContent } from '@/lib/gemini';
 
 export async function POST(request: Request) {
   const FAL_KEY = process.env.FAL_KEY;
-  
+
   if (!FAL_KEY) {
     console.error('FAL_KEY is not defined in environment variables.');
     return NextResponse.json({ error: 'FAL AI 인증 키가 설정되지 않았습니다. 배포 설정(Vercel)을 확인해주세요.' }, { status: 500 });
@@ -24,11 +24,11 @@ export async function POST(request: Request) {
 
     // 1. Gemini를 통한 스타일 분석/추천 및 마케팅 문구 생성
     console.log('Gemini Marketing Agent starting...');
-    
+
     // 레퍼런스가 있으면 분석, 없으면 AI가 추천하는 브랜딩 스타일 적용
     const hasReferences = referenceImages && referenceImages.length > 0;
-    
-    const marketingAgentPrompt = hasReferences 
+
+    const marketingAgentPrompt = hasReferences
       ? `당신은 마케팅 디자인 전문가입니다.
          1단계: 제공된 레퍼런스 이미지들의 스타일 DNA를 분석하세요.
          2단계: 제품 "${productName || 'product'}"이 이 스타일로 변신할 수 있도록 "transform into [스타일 키워드], maintaining the product shape and details exactly" 형식의 영어 프롬프트를 작성하세요.
@@ -65,10 +65,28 @@ export async function POST(request: Request) {
       };
     });
 
-    // JSON 형식으로 결과 받기
-    const agentResponse = await generateVisualContent(marketingAgentPrompt, geminiImages, true);
+    // JSON 형식으로 결과 받기 (이미지 차단 시 텍스트 전용 fallback)
+    let agentResponse: string;
+    try {
+      agentResponse = await generateVisualContent(marketingAgentPrompt, geminiImages, true);
+    } catch (visionErr) {
+      console.warn('Vision 호출 차단됨, 텍스트 전용 fallback 시도:', visionErr instanceof Error ? visionErr.message : visionErr);
+      const textFallbackPrompt = `당신은 프리미엄 브랜드 디렉터입니다.
+제품명: "${productName || 'product'}"
+이 제품을 가장 매력적으로 보이게 할 프리미엄 브랜딩 스타일을 결정하고:
+1. "transform into [스타일 키워드], maintaining the product shape and details exactly" 형식의 영어 프롬프트를 작성하세요.
+2. 매력적인 인스타그램 마케팅 문구(한국어)와 해시태그를 작성하세요.
+
+반드시 아래 JSON 형식으로만 답변하세요:
+{
+  "stylePrompt": "영어 프롬프트",
+  "marketingCaption": "인스타 홍보 문구",
+  "hashtags": ["#태그1", "#태그2"]
+}`;
+      agentResponse = await generateContent(textFallbackPrompt, true);
+    }
     const { stylePrompt, marketingCaption, hashtags } = JSON.parse(agentResponse);
-    
+
     console.log('Gemini Agent Decision:', stylePrompt);
     console.log('Marketing Caption Generated.');
 
@@ -99,7 +117,7 @@ export async function POST(request: Request) {
     }
 
     const falData = await falResponse.json();
-    
+
     return NextResponse.json({
       success: true,
       stylePrompt,
@@ -110,8 +128,8 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Style Transfer Error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : '이미지 생성 중 오류가 발생했습니다.' 
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : '이미지 생성 중 오류가 발생했습니다.'
     }, { status: 500 });
   }
 }

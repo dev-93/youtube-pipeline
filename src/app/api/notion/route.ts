@@ -17,7 +17,7 @@ export const GET = async (request: Request) => {
       let nextCursor: string | undefined = undefined;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allBlocks: any[] = [];
-      
+
       while (hasMore) {
         const blocksResponse = await notion.blocks.children.list({
           block_id: pageId,
@@ -31,7 +31,7 @@ export const GET = async (request: Request) => {
       // 1. 새로운 저장 포맷(JSON 데이터) 우선 탐색
       let jsonContent = '';
       let isSystemData = false;
-      
+
       for (const block of allBlocks) {
         if (block.type === 'heading_3' && block.heading_3?.rich_text?.[0]?.text?.content === '⚙️ System Data') {
           isSystemData = true;
@@ -52,23 +52,23 @@ export const GET = async (request: Request) => {
         if (b.type === 'code') return b.code.rich_text.map((t: any) => t.plain_text).join('');
         return '';
       }).filter((t: string) => t.length > 0);
-      
+
       const fullText = texts.join('\n\n');
-      
+
       const scenarioMatched = fullText.split('[Card ').slice(1);
       const scenario = scenarioMatched.map(c => {
         const lines = c.split('\n').map(l => l.trim()).filter(l => l);
         const cardNumMatch = lines[0]?.match(/^(\d+)\]/);
         const cardNum = cardNumMatch ? parseInt(cardNumMatch[1], 10) : 0;
-        
+
         let title = ''; let subtitle = ''; let body = ''; let question = ''; let preview = '';
-        
+
         if (cardNum === 1) {
-            title = lines[1] || ''; subtitle = lines[2] || '';
+          title = lines[1] || ''; subtitle = lines[2] || '';
         } else if (cardNum === 5) {
-            question = lines[1] || ''; preview = lines[2] || '';
+          question = lines[1] || ''; preview = lines[2] || '';
         } else {
-            title = lines[1] || ''; body = lines.slice(2).join('\n') || '';
+          title = lines[1] || ''; body = lines.slice(2).join('\n') || '';
         }
         return { card: cardNum, title, subtitle, body, question, preview };
       }).filter(c => c.card > 0 && !c.title.includes('Design')); // 디자인 부분과 분리
@@ -78,11 +78,11 @@ export const GET = async (request: Request) => {
         const lines = d.split('\n').map(l => l.trim()).filter(l => l);
         const headerMatch = lines[0]?.match(/^(\d+).*\]/);
         const cardNum = headerMatch ? parseInt(headerMatch[1], 10) : 0;
-        
+
         const gradientLine = lines.find(l => l.startsWith('Gradient: '));
         const glowLine = lines.find(l => l.startsWith('Glow: '));
         const accentLine = lines.find(l => l.startsWith('Accent: '));
-        
+
         const gradientFrom = gradientLine ? gradientLine.split('->')[0].replace('Gradient:', '').trim() : '';
         const gradientTo = gradientLine ? (gradientLine.split('->')[1] || '').trim() : '';
         const glowColor = glowLine ? glowLine.replace('Glow:', '').trim() : '';
@@ -113,7 +113,7 @@ export const GET = async (request: Request) => {
         },
       ],
     });
-        
+
     return NextResponse.json(response.results);
   } catch (error) {
     console.error('Notion API Error:', error);
@@ -124,7 +124,7 @@ export const GET = async (request: Request) => {
 
 export const POST = async (request: Request) => {
   try {
-    const { type, theme, scenario, klingPrompts, marketing, status } = await request.json();
+    const { type, theme, scenario, klingPrompts, marketing, status, imageUrl } = await request.json();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const properties: any = {
@@ -169,14 +169,14 @@ export const POST = async (request: Request) => {
           rich_text: [{ type: 'text', text: { content: type === 'card' ? '✍️ 카드뉴스 본문' : type === 'style' ? '✨ 추출된 스타일 프롬프트' : '🎬 시나리오' } }],
         },
       });
-      
-      const scenarioText = Array.isArray(scenario) 
+
+      const scenarioText = Array.isArray(scenario)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? scenario.map((s: any) => {
-            if (s.sceneNumber) return `${s.sceneNumber}. ${s.description}`;
-            if (s.card) return `[Card ${s.card}]\n${s.title || s.question ||' '}\n${s.subtitle || s.body || s.preview || ' '}`;
-            return JSON.stringify(s);
-          }).join('\n\n')
+          if (s.sceneNumber) return `${s.sceneNumber}. ${s.description}`;
+          if (s.card) return `[Card ${s.card}]\n${s.title || s.question || ' '}\n${s.subtitle || s.body || s.preview || ' '}`;
+          return JSON.stringify(s);
+        }).join('\n\n')
         : scenario;
 
       children.push({
@@ -186,7 +186,7 @@ export const POST = async (request: Request) => {
           rich_text: [{ type: 'text', text: { content: scenarioText.substring(0, 2000) } }],
         },
       });
-      
+
       if (scenarioText.length > 2000) {
         children.push({
           object: 'block',
@@ -208,13 +208,13 @@ export const POST = async (request: Request) => {
         },
       });
 
-          const promptText = Array.isArray(klingPrompts)
+      const promptText = Array.isArray(klingPrompts)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? klingPrompts.map((p: any) => {
-            if (p.sceneNumber) return `[Scene ${p.sceneNumber}]\n${p.englishPrompt}`;
-            if (p.card) return `[Card ${p.card} - ${p.themeName || 'Design'}]\nGradient: ${p.gradientFrom} -> ${p.gradientTo}\nGlow: ${p.glowColor}\nAccent: ${p.accentColor}`;
-            return JSON.stringify(p);
-          }).join('\n\n')
+          if (p.sceneNumber) return `[Scene ${p.sceneNumber}]\n${p.englishPrompt}`;
+          if (p.card) return `[Card ${p.card} - ${p.themeName || 'Design'}]\nGradient: ${p.gradientFrom} -> ${p.gradientTo}\nGlow: ${p.glowColor}\nAccent: ${p.accentColor}`;
+          return JSON.stringify(p);
+        }).join('\n\n')
         : klingPrompts;
 
       children.push({
@@ -240,7 +240,7 @@ export const POST = async (request: Request) => {
       const marketingText = marketing.caption
         ? `캡션: ${marketing.caption}\n\n해시태그: ${marketing.hashtags}`
         : `제목: ${marketing.title}\n\n해시태그: ${marketing.hashtags}\n\n설명: ${marketing.description}`;
-      
+
       children.push({
         object: 'block',
         type: 'paragraph',
@@ -251,7 +251,6 @@ export const POST = async (request: Request) => {
     }
 
     // 스타일 변환 이미지 추가 (type === 'style'인 경우)
-    const { imageUrl } = await request.clone().json(); // request.json()은 이미 한 번 호출됨
     if (imageUrl) {
       children.push({
         object: 'block',
@@ -272,28 +271,34 @@ export const POST = async (request: Request) => {
       });
     }
 
-    // 시스템 로딩을 위한 숨겨진 원본 데이터 보관용 (JSON 데이터, 텍스트 제한 우회용 chunk 사용)
-    const rawDataString = JSON.stringify({ type, theme, scenario, klingPrompts, marketing });
-    const chunks = rawDataString.match(/.{1,2000}/g) || [];
-    
-    children.push({
-      object: 'block',
-      type: 'heading_3',
-      heading_3: {
-        rich_text: [{ type: 'text', text: { content: '⚙️ System Data' } }],
-      },
-    });
-    
-    chunks.forEach((chunk) => {
+    // 시스템 로딩을 위한 숨겨진 원본 데이터 보관용 (style 타입은 데이터가 작으므로 그대로, 나머지는 chunk)
+    const rawData = { type, theme, scenario, klingPrompts, marketing };
+    // imageUrl은 System Data에서 제외 (base64면 payload가 거대해짐)
+    const rawDataString = JSON.stringify(rawData);
+
+    // Notion API payload 제한(~60KB) 초과 방지: 너무 크면 System Data 생략
+    if (rawDataString.length < 50000) {
+      const chunks = rawDataString.match(/.{1,2000}/g) || [];
+
       children.push({
         object: 'block',
-        type: 'code',
-        code: {
-          language: 'json',
-          rich_text: [{ type: 'text', text: { content: chunk } }]
-        }
+        type: 'heading_3',
+        heading_3: {
+          rich_text: [{ type: 'text', text: { content: '⚙️ System Data' } }],
+        },
       });
-    });
+
+      chunks.forEach((chunk) => {
+        children.push({
+          object: 'block',
+          type: 'code',
+          code: {
+            language: 'json',
+            rich_text: [{ type: 'text', text: { content: chunk } }]
+          }
+        });
+      });
+    }
 
     const response = await notion.pages.create({
       parent: { database_id: DATABASE_ID },
@@ -305,7 +310,10 @@ export const POST = async (request: Request) => {
   } catch (error) {
     console.error('Notion API Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const notionBody = (error as any)?.body;
+    console.error('Notion Error Details:', notionBody);
+    return NextResponse.json({ error: errorMessage, details: notionBody }, { status: 500 });
   }
 };
 

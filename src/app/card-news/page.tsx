@@ -335,9 +335,9 @@ export default function CardNewsPage() {
           <button className="keyword-tag selected-item" style={{ padding: '0.4rem 1.2rem', cursor: 'default' }}>
             카드뉴스 만들기
           </button>
-          <Link href="/style-transfer">
+          <Link href="/branding">
             <button className="keyword-tag" style={{ padding: '0.4rem 1.2rem' }}>
-              스타일 변환
+              AI 브랜딩
             </button>
           </Link>
         </nav>

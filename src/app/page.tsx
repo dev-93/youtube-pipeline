@@ -284,9 +284,9 @@ export default function Page() {
           <button 
             className="keyword-tag" 
             style={{ padding: '0.4rem 1.2rem' }}
-            onClick={() => window.location.href = '/style-transfer'}
+            onClick={() => window.location.href = '/branding'}
           >
-            스타일 변환
+            AI 브랜딩
           </button>
         </nav>
       </header>

@@ -8,11 +8,11 @@ inclusion: always
 
 3개 독립 에이전트 기반 콘텐츠 자동화 플랫폼.
 
-| 에이전트         | 경로              | API                   | 역할                    |
-| ---------------- | ----------------- | --------------------- | ----------------------- |
-| AI Shorts        | `/`               | `/api/generate`       | 유튜브 쇼츠 파이프라인  |
-| Card News        | `/card-news`      | `/api/generate`       | 인스타 카드뉴스 생성    |
-| Product Branding | `/style-transfer` | `/api/style-transfer` | 제품 브랜딩 이미지 생성 |
+| 에이전트         | 경로         | API             | 역할                    |
+| ---------------- | ------------ | --------------- | ----------------------- |
+| AI Shorts        | `/`          | `/api/generate` | 유튜브 쇼츠 파이프라인  |
+| Card News        | `/card-news` | `/api/generate` | 인스타 카드뉴스 생성    |
+| Product Branding | `/branding`  | `/api/branding` | 제품 브랜딩 이미지 생성 |
 
 ## 기술 규칙
 

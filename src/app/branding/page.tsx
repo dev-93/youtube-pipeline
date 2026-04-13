@@ -120,7 +120,7 @@ export default function StyleTransferPage() {
     try {
       const compressedProduct = await compressImage(productImage, 1024, 0.8);
 
-      const res = await fetch('/api/style-transfer', {
+      const res = await fetch('/api/branding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

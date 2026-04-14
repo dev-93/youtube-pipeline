@@ -237,17 +237,54 @@ export const POST = async (request: Request) => {
         },
       });
 
-      const marketingText = marketing.caption
-        ? `캡션: ${marketing.caption}\n\n해시태그: ${marketing.hashtags}`
-        : `제목: ${marketing.title}\n\n해시태그: ${marketing.hashtags}\n\n설명: ${marketing.description}`;
+      if (marketing.instagram || marketing.tiktok || marketing.pinterest) {
+        // 멀티 채널 구조화 포맷
+        const channels = [
+          { key: 'instagram', icon: '📸', name: 'Instagram' },
+          { key: 'tiktok', icon: '🎵', name: 'TikTok' },
+          { key: 'pinterest', icon: '📌', name: 'Pinterest' }
+        ];
 
-      children.push({
-        object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [{ type: 'text', text: { content: marketingText } }],
-        },
-      });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        channels.forEach((ch: any) => {
+          if (marketing[ch.key]) {
+            children.push({
+              object: 'block',
+              type: 'heading_3',
+              heading_3: {
+                rich_text: [{ type: 'text', text: { content: `${ch.icon} ${ch.name}` } }],
+              },
+            });
+            children.push({
+              object: 'block',
+              type: 'paragraph',
+              paragraph: {
+                rich_text: [{ type: 'text', text: { content: marketing[ch.key].caption } }],
+              },
+            });
+            children.push({
+              object: 'block',
+              type: 'paragraph',
+              paragraph: {
+                rich_text: [{ type: 'text', text: { content: marketing[ch.key].hashtags }, annotations: { color: 'blue' } }],
+              },
+            });
+          }
+        });
+      } else {
+        // 기존 단일 텍스트 포맷
+        const marketingText = marketing.caption
+          ? `캡션: ${marketing.caption}\n\n해시태그: ${marketing.hashtags}`
+          : `제목: ${marketing.title}\n\n해시태그: ${marketing.hashtags}\n\n설명: ${marketing.description}`;
+
+        children.push({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [{ type: 'text', text: { content: marketingText } }],
+          },
+        });
+      }
     }
 
     // 스타일 변환 이미지 추가 (type === 'style'인 경우)
